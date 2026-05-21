@@ -1,0 +1,269 @@
+import '../models/service_order.dart';
+import '../models/service_order_photo.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:typed_data';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/constants/supabase_constants.dart';
+import '../../core/constants/app_constants.dart';
+
+/// Repositório de ordens de serviço — alinhado com DB real.
+class ServiceOrderRepository {
+  static const String storageBucket = 'erp-files';
+
+  String _sanitizeStorageSegment(String value) {
+    final normalized = value.trim();
+    final safe = normalized
+        .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_')
+        .replaceAll(RegExp(r'_+'), '_');
+    return safe.isEmpty ? 'arquivo' : safe;
+  }
+
+  String _buildPhotoFolder({
+    required String organizationId,
+    required String orderId,
+  }) {
+    final org = _sanitizeStorageSegment(organizationId);
+    final os = _sanitizeStorageSegment(orderId);
+    return 'org_$org/ordens-servico/$os/fotos';
+  }
+
+  int _extractFileSize(Map<String, dynamic>? metadata) {
+    if (metadata == null) return 0;
+    final size = metadata['size'];
+    if (size is int && size > 0) return size;
+    if (size is num && size > 0) return size.toInt();
+    if (size is String) return int.tryParse(size) ?? 0;
+    return 0;
+  }
+
+  DateTime? _parseObjectDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
+  }
+
+  String? _toNullableString(dynamic value) {
+    if (value == null) return null;
+    final parsed = value.toString().trim();
+    return parsed.isEmpty ? null : parsed;
+  }
+
+  Future<void> _syncVehicleClientLink({
+    required dynamic organizationId,
+    required dynamic vehicleId,
+    required dynamic clientId,
+  }) async {
+    final org = _toNullableString(organizationId);
+    final vehicle = _toNullableString(vehicleId);
+    final client = _toNullableString(clientId);
+    if (org == null || vehicle == null || client == null) return;
+
+    await supabase
+        .from('vehicles')
+        .update({'client_id': client})
+        .eq('id', vehicle)
+        .eq('organization_id', org);
+  }
+
+  Future<List<ServiceOrderPhoto>> getPhotos({
+    required String organizationId,
+    required String orderId,
+    String bucket = storageBucket,
+  }) async {
+    final folder = _buildPhotoFolder(
+      organizationId: organizationId,
+      orderId: orderId,
+    );
+
+    final listed = await supabase.storage.from(bucket).list(path: folder);
+    final rows = listed.where((f) => f.name != '.emptyFolderPlaceholder');
+
+    final photos = await Future.wait(
+      rows.map((f) async {
+        final path = '$folder/${f.name}';
+        String? signedUrl;
+        try {
+          signedUrl = await supabase.storage
+              .from(bucket)
+              .createSignedUrl(path, 60 * 60);
+        } catch (_) {
+          signedUrl = null;
+        }
+
+        return ServiceOrderPhoto(
+          name: f.name,
+          path: path,
+          signedUrl: signedUrl,
+          sizeBytes: _extractFileSize(f.metadata),
+          updatedAt:
+              _parseObjectDate(f.updatedAt) ?? _parseObjectDate(f.createdAt),
+        );
+      }),
+    );
+
+    photos.sort((a, b) {
+      final ad = a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bd = b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return bd.compareTo(ad);
+    });
+    return photos;
+  }
+
+  Future<ServiceOrderPhoto> uploadPhoto({
+    required String organizationId,
+    required String orderId,
+    required String fileName,
+    required Uint8List bytes,
+    String? contentType,
+    String bucket = storageBucket,
+  }) async {
+    final folder = _buildPhotoFolder(
+      organizationId: organizationId,
+      orderId: orderId,
+    );
+
+    final safeName = _sanitizeStorageSegment(fileName);
+    final path = '$folder/${DateTime.now().millisecondsSinceEpoch}_$safeName';
+
+    await supabase.storage
+        .from(bucket)
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: contentType ?? 'application/octet-stream',
+            upsert: false,
+          ),
+        );
+
+    String? signedUrl;
+    try {
+      signedUrl = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(path, 60 * 60);
+    } catch (_) {
+      signedUrl = null;
+    }
+
+    return ServiceOrderPhoto(
+      name: safeName,
+      path: path,
+      signedUrl: signedUrl,
+      sizeBytes: bytes.lengthInBytes,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  /// Lista ordens de serviço com joins.
+  Future<List<ServiceOrder>> getAll(
+    String organizationId, {
+    int page = 0,
+    String? search,
+    String? status,
+  }) async {
+    var query = supabase
+        .from('ordens_servico')
+        .select(
+          '*, clients(name, tipo_pessoa, fantasy_name), vehicles(placa, modelo, marca), os_itens(*)',
+        )
+        .eq('organization_id', organizationId);
+
+    if (status != null && status.isNotEmpty) {
+      query = query.eq('status', status);
+    }
+
+    final offset = page * AppConstants.defaultPageSize;
+
+    final response = await query
+        .order('created_at', ascending: false)
+        .range(offset, offset + AppConstants.defaultPageSize - 1);
+
+    return (response as List)
+        .map((json) => ServiceOrder.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Busca OS por ID com itens.
+  Future<ServiceOrder?> getById(String id) async {
+    final response = await supabase
+        .from('ordens_servico')
+        .select(
+          '*, clients(name, tipo_pessoa, fantasy_name), vehicles(placa, modelo, marca), os_itens(*)',
+        )
+        .eq('id', id)
+        .maybeSingle();
+
+    if (response == null) return null;
+    return ServiceOrder.fromJson(response);
+  }
+
+  /// Cria uma nova OS.
+  Future<ServiceOrder> create(Map<String, dynamic> data) async {
+    final payload = Map<String, dynamic>.from(data);
+    final userId = supabase.auth.currentUser?.id;
+    payload['user_id'] = payload['user_id'] ?? userId;
+
+    if ((payload['user_id']?.toString().trim().isEmpty ?? true)) {
+      throw Exception('Usuário não autenticado para criar OS.');
+    }
+
+    final response = await supabase
+        .from('ordens_servico')
+        .insert(payload)
+        .select()
+        .single();
+
+    await _syncVehicleClientLink(
+      organizationId: payload['organization_id'],
+      vehicleId: payload['vehicle_id'],
+      clientId: payload['client_id'],
+    );
+
+    return ServiceOrder.fromJson(response);
+  }
+
+  /// Atualiza uma OS.
+  Future<void> update(String id, Map<String, dynamic> data) async {
+    await supabase.from('ordens_servico').update(data).eq('id', id);
+
+    await _syncVehicleClientLink(
+      organizationId: data['organization_id'],
+      vehicleId: data['vehicle_id'],
+      clientId: data['client_id'],
+    );
+  }
+
+  /// Remove uma OS.
+  Future<void> delete(String id) async {
+    await supabase.from('ordens_servico').delete().eq('id', id);
+  }
+
+  /// Adiciona item à OS (tabela `os_itens`).
+  Future<void> addItem(String osId, Map<String, dynamic> item) async {
+    await supabase.from('os_itens').insert({...item, 'os_id': osId});
+  }
+
+  /// Remove item da OS.
+  Future<void> removeItem(String itemId) async {
+    await supabase.from('os_itens').delete().eq('id', itemId);
+  }
+
+  /// Conta ordens por status.
+  Future<Map<String, int>> countByStatus(String organizationId) async {
+    final response = await supabase
+        .from('ordens_servico')
+        .select('status')
+        .eq('organization_id', organizationId);
+
+    final counts = <String, int>{};
+    for (final row in (response as List)) {
+      final status = row['status']?.toString() ?? 'aberta';
+      counts[status] = (counts[status] ?? 0) + 1;
+    }
+    return counts;
+  }
+}
+
+final serviceOrderRepositoryProvider = Provider<ServiceOrderRepository>((ref) {
+  return ServiceOrderRepository();
+});

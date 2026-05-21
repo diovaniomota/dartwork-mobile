@@ -1,0 +1,52 @@
+name: work_erp_mobile
+description: "Work ERP Mobile - Sistema de gestão empresarial"
+publish_to: 'none'
+version: 1.0.2+4
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  supabase_flutter: ^2.8.0
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.1
+  intl: ^0.20.2
+  cached_network_image: ^3.4.1
+  mask_text_input_formatter: ^2.9.0
+  url_launcher: ^6.3.1
+  flutter_dotenv: ^5.2.1
+  shared_preferences: ^2.5.4
+  http: ^1.6.0
+  file_picker: ^10.3.10
+  image_picker: ^1.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.4
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  adaptive_icon_background: "#161e4d"
+  adaptive_icon_foreground: "assets/images/app_icon.png"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: "assets/images/splash_logo.png"
+  android_12:
+    image: "assets/images/splash_logo.png"
+    color: "#ffffff"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/images/
