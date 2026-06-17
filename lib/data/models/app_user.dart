@@ -53,12 +53,30 @@ class AppUser {
     );
   }
 
-  bool get isAdmin => role == 'admin' || isSuperAdmin;
+  /// Roles com acesso total — alinhado com o desktop (requestPermission.js).
+  static const Set<String> _adminLikeRoles = {
+    'admin',
+    'administrador',
+    'owner',
+    'super admin',
+    'super_admin',
+    'superadmin',
+  };
+
+  bool get isAdminLike =>
+      isSuperAdmin || _adminLikeRoles.contains(role.trim().toLowerCase());
+
+  bool get isAdmin => isAdminLike;
 
   bool hasPermission(String module, String action) {
-    if (isSuperAdmin || role == 'admin') return true;
+    if (isAdminLike) return true;
+    if (module == 'dashboard') return true;
     if (permissions == null) return false;
+
     final modulePerms = permissions![module];
+    // Módulo inteiro liberado (true) ou negado (false/null).
+    if (modulePerms == null || modulePerms == false) return false;
+    if (modulePerms == true) return true;
     if (modulePerms is Map) {
       return modulePerms[action] == true;
     }
