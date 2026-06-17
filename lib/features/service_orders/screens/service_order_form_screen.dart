@@ -660,17 +660,27 @@ class _ServiceOrderFormScreenState
       };
       if (isEditing) {
         await repo.update(widget.orderId!, data);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('OS atualizada!')),
+          );
+          context.pop();
+        }
       } else {
         if (userId == null || userId.isEmpty) {
           throw Exception('Usuário não autenticado.');
         }
-        await repo.create({...data, 'user_id': userId});
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(isEditing ? 'OS atualizada!' : 'OS criada!')),
-        );
-        context.pop();
+        final newOrder = await repo.create({...data, 'user_id': userId});
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('OS criada! Adicione os itens.')),
+          );
+          // Navega para detalhes abrindo na aba Itens (índice 1)
+          context.pushReplacement(
+            '/ordens-servico/${newOrder.id}',
+            extra: {'initialTab': 1},
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -255,35 +255,111 @@ class ServiceOrderRepository {
     required String paymentMethod,
     required int totalCents,
     DateTime? paymentDate,
+    String paymentStatus = 'pago_agora',
+    int installments = 1,
+    List<Map<String, dynamic>>? parcelas,
   }) async {
     final now = DateTime.now().toIso8601String();
     final dateStr = (paymentDate ?? DateTime.now()).toIso8601String();
 
-    // Tenta RPC completo primeiro; se falhar, faz atualização direta.
     try {
       await supabase.rpc('fn_finalizar_os_pagamento_desktop', params: {
         'p_os_id': id,
         'p_organization_id': organizationId,
-        'p_payment_status': 'pago_agora',
+        'p_payment_status': paymentStatus,
         'p_total_value': totalCents / 100.0,
         'p_client_id': null,
         'p_method': paymentMethod,
         'p_description': 'Finalizado via mobile',
-        'p_receivables': [],
+        'p_receivables': parcelas ?? [],
       });
       return;
     } catch (_) {
-      // RPC não disponível ou falhou — usa update direto.
+      // RPC não disponível — usa update direto.
     }
 
+    final pStatus = paymentStatus == 'pendente'
+        ? 'pendente'
+        : paymentStatus == 'parcelado'
+            ? 'parcelado'
+            : 'pago';
     await supabase.from('ordens_servico').update({
       'status': 'finalizada',
-      'payment_status': 'pago',
+      'payment_status': pStatus,
       'payment_method': paymentMethod,
       'data_fechamento': dateStr,
       'updated_at': now,
     }).eq('id', id).eq('organization_id', organizationId);
   }
+
+  /// Busca checklist de entrada da OS.
+  Future<Map<String, dynamic>?> getChecklist(
+      String osId, String orgId) async {
+    try {
+      return await supabase
+          .from('os_checklists')
+          .select()
+          .eq('os_id', osId)
+          .eq('organization_id', orgId)
+          .eq('tipo', 'entrada')
+          .maybeSingle();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Salva checklist de entrada (upsert). Também atualiza km e tanque na OS.
+  Future<void> saveChecklist(
+    String osId,
+    String orgId, {
+    required Map<String, dynamic> items,
+    String? observacoes,
+    int? kmEntrada,
+    String? tanqueNivel,
+  }) async {
+    await supabase.from('os_checklists').upsert({
+      'os_id': osId,
+      'organization_id': orgId,
+      'tipo': 'entrada',
+      'items': items,
+      'observacoes': observacoes,
+    }, onConflict: 'os_id,tipo');
+
+    if (kmEntrada != null || tanqueNivel != null) {
+      final updates = <String, dynamic>{
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      if (kmEntrada != null) updates['km_entrada'] = kmEntrada;
+      if (tanqueNivel != null) updates['tanque_nivel'] = tanqueNivel;
+      await supabase.from('ordens_servico').update(updates).eq('id', osId);
+    }
+  }
+
+  /// Itens de checklist personalizados da empresa (ou lista padrão).
+  Future<List<String>> getChecklistItems(String orgId) async {
+    try {
+      final response = await supabase
+          .from('checklist_items')
+          .select('name')
+          .eq('organization_id', orgId)
+          .eq('active', true)
+          .order('name');
+      final items = (response as List)
+          .map((r) => r['name']?.toString() ?? '')
+          .where((n) => n.isNotEmpty)
+          .toList();
+      return items.isNotEmpty ? items : _defaultChecklistItems;
+    } catch (_) {
+      return _defaultChecklistItems;
+    }
+  }
+
+  static const _defaultChecklistItems = [
+    'Lataria/Pintura', 'Vidros/Espelhos', 'Pneus/Rodas',
+    'Faróis/Lanternas', 'Interior/Estofado', 'Painel/Instrumentos',
+    'Macaco/Chave de Roda', 'Estepe', 'Bateria', 'Freios',
+    'Óleo/Fluidos', 'Suspensão',
+  ];
 
   /// Altera o status da OS de forma explícita.
   Future<void> updateStatus(

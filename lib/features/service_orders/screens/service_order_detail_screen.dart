@@ -6,14 +6,20 @@ import '../../../data/models/service_order.dart';
 import '../../../data/repositories/service_order_repository.dart';
 import '../../../providers/permission_provider.dart';
 import '../../../shared/widgets/common_widgets.dart';
+import '../widgets/os_checklist_tab.dart';
 import '../widgets/os_details_tab.dart';
 import '../widgets/os_items_tab.dart';
 import '../widgets/os_payment_tab.dart';
 
 class ServiceOrderDetailScreen extends ConsumerStatefulWidget {
   final String orderId;
+  final int initialTab;
 
-  const ServiceOrderDetailScreen({super.key, required this.orderId});
+  const ServiceOrderDetailScreen({
+    super.key,
+    required this.orderId,
+    this.initialTab = 0,
+  });
 
   @override
   ConsumerState<ServiceOrderDetailScreen> createState() =>
@@ -34,7 +40,8 @@ class _ServiceOrderDetailScreenState
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(
+        length: 5, vsync: this, initialIndex: widget.initialTab);
     _loadOrder();
   }
 
@@ -372,6 +379,7 @@ class _ServiceOrderDetailScreenState
           tabs: const [
             Tab(icon: Icon(Icons.info_outline), text: 'Detalhes'),
             Tab(icon: Icon(Icons.build_outlined), text: 'Itens'),
+            Tab(icon: Icon(Icons.checklist_rounded), text: 'Checklist'),
             Tab(icon: Icon(Icons.payment_outlined), text: 'Pagamento'),
             Tab(icon: Icon(Icons.photo_library_outlined), text: 'Fotos'),
           ],
@@ -388,6 +396,7 @@ class _ServiceOrderDetailScreenState
               children: [
                 OsDetailsTab(order: order),
                 OsItemsTab(order: order, onChanged: _loadOrder),
+                OsChecklistTab(order: order, onChanged: _loadOrder),
                 OsPaymentTab(order: order, onChanged: _loadOrder),
                 _PhotosTab(order: order, repo: _repo),
               ],

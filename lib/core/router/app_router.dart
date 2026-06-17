@@ -680,8 +680,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/ordens-servico/:id',
-        builder: (context, state) =>
-            ServiceOrderDetailScreen(orderId: state.pathParameters['id']!),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final initialTab = (extra?['initialTab'] as int?) ?? 0;
+          return ServiceOrderDetailScreen(
+            orderId: state.pathParameters['id']!,
+            initialTab: initialTab,
+          );
+        },
       ),
 
       // PDV e caixa
