@@ -324,7 +324,6 @@ class AppDrawer extends ConsumerWidget {
             label: 'Ordens de Serviço',
             path: '/ordens-servico',
             icon: Icons.build_rounded,
-            permissionModule: 'ordens_servico',
             billingFeature: 'ordens_servico',
           ),
           _DrawerItemData(
