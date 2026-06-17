@@ -109,7 +109,7 @@ class _OsItemsTabState extends State<OsItemsTab> {
               // Tipo
               ValueListenableBuilder<String>(
                 valueListenable: tipoCtrl,
-                builder: (_, tipo, __) => SegmentedButton<String>(
+                builder: (ctx, tipo, child) => SegmentedButton<String>(
                   segments: const [
                     ButtonSegment(value: 'servico', label: Text('Serviço')),
                     ButtonSegment(value: 'produto', label: Text('Produto')),
@@ -282,7 +282,7 @@ class _OsItemsTabState extends State<OsItemsTab> {
                           Icon(Icons.build_circle_outlined,
                               size: 48,
                               color: theme.colorScheme.onSurface
-                                  .withOpacity(0.3)),
+                                  .withValues(alpha:0.3)),
                           const SizedBox(height: 8),
                           Text(
                             _isReadOnly
@@ -291,7 +291,7 @@ class _OsItemsTabState extends State<OsItemsTab> {
                             textAlign: TextAlign.center,
                             style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.colorScheme.onSurface
-                                    .withOpacity(0.5)),
+                                    .withValues(alpha:0.5)),
                           ),
                         ],
                       ),
@@ -299,7 +299,7 @@ class _OsItemsTabState extends State<OsItemsTab> {
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
                       itemCount: itens.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      separatorBuilder: (ctx, i) => const SizedBox(height: 8),
                       itemBuilder: (_, i) {
                         final item = itens[i];
                         return Card(
@@ -308,8 +308,8 @@ class _OsItemsTabState extends State<OsItemsTab> {
                             leading: CircleAvatar(
                               backgroundColor:
                                   item.tipo == 'servico'
-                                      ? Colors.blue.withOpacity(0.15)
-                                      : Colors.orange.withOpacity(0.15),
+                                      ? Colors.blue.withValues(alpha:0.15)
+                                      : Colors.orange.withValues(alpha:0.15),
                               child: Icon(
                                 item.tipo == 'servico'
                                     ? Icons.build

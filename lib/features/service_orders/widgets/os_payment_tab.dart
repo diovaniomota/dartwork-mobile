@@ -155,7 +155,7 @@ class _OsPaymentTabState extends State<OsPaymentTab> {
                     Text('Valor total',
                         style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onPrimaryContainer
-                                .withOpacity(0.7))),
+                                .withValues(alpha:0.7))),
                     const SizedBox(height: 4),
                     Text(
                       _currency.format(_totalCents / 100),

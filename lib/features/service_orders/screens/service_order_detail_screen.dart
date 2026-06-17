@@ -421,7 +421,7 @@ class _PhotosTabState extends ConsumerState<_PhotosTab> {
           borderRadius: BorderRadius.circular(8),
           child: photo.signedUrl != null
               ? Image.network(photo.signedUrl!, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const ColoredBox(
+                  errorBuilder: (ctx, err, stack) => const ColoredBox(
                         color: Color(0xFFEEEEEE),
                         child:
                             Center(child: Icon(Icons.broken_image_outlined)),
