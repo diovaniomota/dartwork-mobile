@@ -285,6 +285,73 @@ class ServiceOrderRepository {
     }).eq('id', id).eq('organization_id', organizationId);
   }
 
+  /// Altera o status da OS de forma explícita.
+  Future<void> updateStatus(
+    String id,
+    String organizationId,
+    String status,
+  ) async {
+    await supabase
+        .from('ordens_servico')
+        .update({
+          'status': status,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', id)
+        .eq('organization_id', organizationId);
+  }
+
+  /// Estorna uma OS finalizada/faturada (reverte estoque, financeiro e caixa).
+  /// Usa a mesma RPC do desktop: fn_reverse_service_order.
+  Future<void> estornar(
+    String id,
+    String organizationId,
+    String reason,
+  ) async {
+    final userId = supabase.auth.currentUser?.id;
+    final error = await supabase.rpc('fn_reverse_service_order', params: {
+      'p_os_id': id,
+      'p_organization_id': organizationId,
+      'p_reason': reason,
+      'p_user_id': userId,
+    }).then((_) => null).catchError((e) => e);
+
+    if (error != null) {
+      throw Exception(_friendlyRpcError(error,
+          'Não foi possível estornar a OS com segurança.'));
+    }
+  }
+
+  /// Reabre uma OS estornada, voltando para "em_andamento".
+  /// Usa a mesma RPC do desktop: fn_reopen_service_order.
+  Future<void> reabrir(
+    String id,
+    String organizationId, {
+    String? reason,
+  }) async {
+    final userId = supabase.auth.currentUser?.id;
+    final reopenReason =
+        (reason?.trim().isNotEmpty ?? false) ? reason!.trim() : 'Reabertura de OS estornada.';
+
+    final error = await supabase.rpc('fn_reopen_service_order', params: {
+      'p_os_id': id,
+      'p_organization_id': organizationId,
+      'p_reason': reopenReason,
+      'p_target_status': 'em_andamento',
+      'p_user_id': userId,
+    }).then((_) => null).catchError((e) => e);
+
+    if (error != null) {
+      throw Exception(_friendlyRpcError(error,
+          'Não foi possível reabrir a OS com segurança.'));
+    }
+  }
+
+  String _friendlyRpcError(Object error, String fallback) {
+    final msg = error is PostgrestException ? error.message : error.toString();
+    return msg.isNotEmpty ? msg : fallback;
+  }
+
   /// Conta ordens por status.
   Future<Map<String, int>> countByStatus(String organizationId) async {
     final response = await supabase

@@ -30,19 +30,23 @@ class AppColors {
   static const lightBorderStrong = Color(0xFFC1D3EE);
   static const lightSurfaceElevated = Color(0xFFF7FAFF);
 
-  // Dark theme
-  static const darkBg = Color(0xFF061427);
-  static const darkBgSoft = Color(0xFF081D37);
-  static const darkCard = Color(0xFF0E2443);
-  static const darkSidebar = Color(0xFF0B1E38);
-  static const darkHover = Color(0xFF173C6A);
-  static const darkInput = Color(0xFF102949);
-  static const darkTextPrimary = Color(0xFFEFF5FF);
-  static const darkTextSecondary = Color(0xFFB5C8E8);
-  static const darkTextMuted = Color(0xFF8EA8CC);
-  static const darkBorder = Color(0xFF244971);
-  static const darkBorderStrong = Color(0xFF2F6197);
-  static const darkSurfaceElevated = Color(0xFF102B4D);
+  // Dark theme — preto neutro, alinhado com o desktop (globals.css [data-theme='dark'])
+  static const darkBg = Color(0xFF111111); // --bg-body
+  static const darkBgSoft = Color(0xFF161616); // --bg-sidebar
+  static const darkCard = Color(0xFF1B1B1B); // --bg-card
+  static const darkSidebar = Color(0xFF161616);
+  static const darkHover = Color(0xFF242424); // --bg-hover
+  static const darkInput = Color(0xFF191919); // --bg-input
+  static const darkTextPrimary = Color(0xFFF5F5F5); // --text-primary
+  static const darkTextSecondary = Color(0xFFC9C9C9); // --text-secondary
+  static const darkTextMuted = Color(0xFF8F8F8F); // --text-muted
+  static const darkBorder = Color(0xFF2D2D2D); // --border-color
+  static const darkBorderStrong = Color(0xFF353535); // --button-secondary-border
+  static const darkSurfaceElevated = Color(0xFF202020); // --bg-secondary
+
+  // Accent verde do dark mode (igual ao desktop --accent-primary)
+  static const darkAccent = Color(0xFF64C98B);
+  static const darkAccentSecondary = Color(0xFF3D8F63);
 
   // Login gradients
   static const loginGradientStart = Color(0xFF061325);

@@ -6,6 +6,7 @@ import '../../../data/models/service_order.dart';
 import '../../../data/repositories/service_order_repository.dart';
 import '../../../providers/permission_provider.dart';
 import '../../../shared/widgets/common_widgets.dart';
+import '../widgets/os_details_tab.dart';
 import '../widgets/os_items_tab.dart';
 import '../widgets/os_payment_tab.dart';
 
@@ -33,7 +34,7 @@ class _ServiceOrderDetailScreenState
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
     _loadOrder();
   }
 
@@ -64,6 +65,18 @@ class _ServiceOrderDetailScreenState
           _loading = false;
         });
       }
+    }
+  }
+
+  /// Roteia a ação escolhida no menu suspenso.
+  Future<void> _onMenuAction(String action) async {
+    switch (action) {
+      case 'estornar':
+        await _estornarOS();
+      case 'reabrir':
+        await _reabrirOS();
+      default:
+        await _changeStatus(action);
     }
   }
 
@@ -99,7 +112,7 @@ class _ServiceOrderDetailScreenState
     if (confirm != true || !mounted) return;
 
     try {
-      await _repo.update(order.id, {'status': newStatus});
+      await _repo.updateStatus(order.id, order.organizationId, newStatus);
       _loadOrder();
     } catch (e) {
       if (mounted) {
@@ -110,6 +123,144 @@ class _ServiceOrderDetailScreenState
       }
     }
   }
+
+  /// Estorna OS finalizada/faturada (reverte estoque, financeiro e caixa).
+  Future<void> _estornarOS() async {
+    final order = _order;
+    if (order == null) return;
+
+    final reason = await _askReason(
+      title: 'Estornar OS',
+      message:
+          'O estorno reverte estoque, financeiro e caixa desta OS. Informe o motivo:',
+      confirmLabel: 'Estornar',
+      confirmColor: Colors.deepOrange,
+    );
+    if (reason == null || !mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      await _repo.estornar(order.id, order.organizationId, reason);
+      await _loadOrder();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('OS estornada com sucesso.'),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Erro ao estornar: ${_clean(e)}'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  /// Reabre OS estornada (volta para em andamento).
+  Future<void> _reabrirOS() async {
+    final order = _order;
+    if (order == null) return;
+
+    final reason = await _askReason(
+      title: 'Reabrir OS',
+      message: 'A OS voltará para "Em Andamento". Informe o motivo (opcional):',
+      confirmLabel: 'Reabrir',
+      confirmColor: Colors.blue,
+      required: false,
+    );
+    if (reason == null || !mounted) return;
+
+    setState(() => _loading = true);
+    try {
+      await _repo.reabrir(order.id, order.organizationId, reason: reason);
+      await _loadOrder();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('OS reaberta com sucesso.'),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Erro ao reabrir: ${_clean(e)}'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  /// Diálogo para capturar um motivo. Retorna null se cancelado.
+  Future<String?> _askReason({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required Color confirmColor,
+    bool required = true,
+  }) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        String? error;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: Text(title),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(message, style: const TextStyle(fontSize: 13)),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  maxLines: 3,
+                  minLines: 1,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    hintText: 'Motivo',
+                    border: const OutlineInputBorder(),
+                    errorText: error,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancelar')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: confirmColor),
+                onPressed: () {
+                  final text = controller.text.trim();
+                  if (required && text.isEmpty) {
+                    setLocal(() => error = 'Informe o motivo');
+                    return;
+                  }
+                  Navigator.pop(ctx, text);
+                },
+                child: Text(confirmLabel),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    controller.dispose();
+    return result;
+  }
+
+  String _clean(Object e) =>
+      e.toString().replaceFirst('Exception: ', '').trim();
 
   List<PopupMenuEntry<String>> _buildMenuItems(ServiceOrder order) {
     final status = order.status.toLowerCase();
@@ -124,7 +275,27 @@ class _ServiceOrderDetailScreenState
               contentPadding: EdgeInsets.zero)));
     }
 
-    if (!['finalizada', 'faturada', 'estornada', 'cancelada']
+    // Estornar: somente OS finalizada/faturada/encerrada.
+    if (['finalizada', 'faturada', 'encerrada'].contains(status)) {
+      items.add(const PopupMenuItem(
+          value: 'estornar',
+          child: ListTile(
+              leading: Icon(Icons.undo_rounded, color: Colors.deepOrange),
+              title: Text('Estornar OS'),
+              contentPadding: EdgeInsets.zero)));
+    }
+
+    // Reabrir: somente OS estornada.
+    if (status == 'estornada') {
+      items.add(const PopupMenuItem(
+          value: 'reabrir',
+          child: ListTile(
+              leading: Icon(Icons.refresh_rounded, color: Colors.blue),
+              title: Text('Reabrir OS'),
+              contentPadding: EdgeInsets.zero)));
+    }
+
+    if (!['finalizada', 'faturada', 'estornada', 'cancelada', 'encerrada']
         .contains(status)) {
       items.add(const PopupMenuItem(
           value: 'cancelada',
@@ -190,13 +361,16 @@ class _ServiceOrderDetailScreenState
             ),
           if (menuItems.isNotEmpty)
             PopupMenuButton<String>(
-              onSelected: _changeStatus,
+              onSelected: _onMenuAction,
               itemBuilder: (_) => menuItems,
             ),
         ],
         bottom: TabBar(
           controller: _tabs,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: const [
+            Tab(icon: Icon(Icons.info_outline), text: 'Detalhes'),
             Tab(icon: Icon(Icons.build_outlined), text: 'Itens'),
             Tab(icon: Icon(Icons.payment_outlined), text: 'Pagamento'),
             Tab(icon: Icon(Icons.photo_library_outlined), text: 'Fotos'),
@@ -212,6 +386,7 @@ class _ServiceOrderDetailScreenState
             child: TabBarView(
               controller: _tabs,
               children: [
+                OsDetailsTab(order: order),
                 OsItemsTab(order: order, onChanged: _loadOrder),
                 OsPaymentTab(order: order, onChanged: _loadOrder),
                 _PhotosTab(order: order, repo: _repo),

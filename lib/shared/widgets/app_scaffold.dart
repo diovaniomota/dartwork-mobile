@@ -60,7 +60,7 @@ class AppScaffold extends StatelessWidget {
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: isDark
-          ? const [Color(0xFF0A2344), Color(0xFF10325D)]
+          ? const [Color(0xFF161616), Color(0xFF1B1B1B)]
           : const [Color(0xFFF7FBFF), Color(0xFFE8F2FF)],
     );
 
@@ -133,13 +133,16 @@ class AppScaffold extends StatelessWidget {
           ),
           child: Stack(
             children: [
+              // Orbs decorativos apenas no tema claro. No dark mantemos o
+              // fundo preto chapado, igual ao desktop.
               Positioned(
                 top: -120,
                 right: -84,
                 child: _GlowOrb(
                   size: 280,
-                  color: (isDark ? AppColors.brandBlue : AppColors.brandGreen)
-                      .withAlpha(isDark ? 32 : 20),
+                  color: isDark
+                      ? Colors.transparent
+                      : AppColors.brandGreen.withAlpha(20),
                 ),
               ),
               Positioned(
@@ -147,8 +150,9 @@ class AppScaffold extends StatelessWidget {
                 left: -60,
                 child: _GlowOrb(
                   size: 220,
-                  color: (isDark ? AppColors.brandGreen : AppColors.brandBlue)
-                      .withAlpha(isDark ? 42 : 28),
+                  color: isDark
+                      ? Colors.transparent
+                      : AppColors.brandBlue.withAlpha(28),
                 ),
               ),
               Positioned(
@@ -156,8 +160,9 @@ class AppScaffold extends StatelessWidget {
                 bottom: -100,
                 child: _GlowOrb(
                   size: 260,
-                  color: (isDark ? AppColors.brandBlue : AppColors.brandGreen)
-                      .withAlpha(isDark ? 42 : 26),
+                  color: isDark
+                      ? Colors.transparent
+                      : AppColors.brandGreen.withAlpha(26),
                 ),
               ),
               Positioned.fill(

@@ -275,10 +275,10 @@ class AppTheme {
   static ThemeData get dark {
     final scheme =
         ColorScheme.fromSeed(
-          seedColor: AppColors.brandGreen,
+          seedColor: AppColors.darkAccent,
           brightness: Brightness.dark,
-          primary: AppColors.brandGreen,
-          secondary: AppColors.brandBlue,
+          primary: AppColors.darkAccent,
+          secondary: AppColors.darkAccentSecondary,
           surface: AppColors.darkCard,
           error: AppColors.danger,
         ).copyWith(
@@ -374,7 +374,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.brandGreen, width: 1.6),
+          borderSide: const BorderSide(color: AppColors.darkAccent, width: 1.6),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -391,9 +391,9 @@ class AppTheme {
             (states) => states.contains(WidgetState.pressed) ? 1 : 4,
           ),
           shadowColor: WidgetStatePropertyAll(
-            AppColors.brandGreen.withAlpha(58),
+            AppColors.darkAccent.withAlpha(58),
           ),
-          backgroundColor: const WidgetStatePropertyAll(AppColors.brandGreen),
+          backgroundColor: const WidgetStatePropertyAll(AppColors.darkAccent),
           foregroundColor: const WidgetStatePropertyAll(Colors.white),
           minimumSize: const WidgetStatePropertyAll(Size(0, 46)),
           padding: const WidgetStatePropertyAll(
@@ -413,7 +413,7 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.brandGreen,
+          backgroundColor: AppColors.darkAccent,
           foregroundColor: Colors.white,
           minimumSize: const Size(0, 46),
           shape: RoundedRectangleBorder(
@@ -459,7 +459,7 @@ class AppTheme {
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: AppColors.brandGreen,
+        backgroundColor: AppColors.darkAccent,
         foregroundColor: Colors.white,
         elevation: 8,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
