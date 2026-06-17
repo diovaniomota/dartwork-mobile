@@ -248,6 +248,43 @@ class ServiceOrderRepository {
     await supabase.from('os_itens').delete().eq('id', itemId);
   }
 
+  /// Finaliza uma OS com forma de pagamento.
+  Future<void> finalizar(
+    String id,
+    String organizationId, {
+    required String paymentMethod,
+    required int totalCents,
+    DateTime? paymentDate,
+  }) async {
+    final now = DateTime.now().toIso8601String();
+    final dateStr = (paymentDate ?? DateTime.now()).toIso8601String();
+
+    // Tenta RPC completo primeiro; se falhar, faz atualização direta.
+    try {
+      await supabase.rpc('fn_finalizar_os_pagamento_desktop', params: {
+        'p_os_id': id,
+        'p_organization_id': organizationId,
+        'p_payment_status': 'pago_agora',
+        'p_total_value': totalCents / 100.0,
+        'p_client_id': null,
+        'p_method': paymentMethod,
+        'p_description': 'Finalizado via mobile',
+        'p_receivables': [],
+      });
+      return;
+    } catch (_) {
+      // RPC não disponível ou falhou — usa update direto.
+    }
+
+    await supabase.from('ordens_servico').update({
+      'status': 'finalizada',
+      'payment_status': 'pago',
+      'payment_method': paymentMethod,
+      'data_fechamento': dateStr,
+      'updated_at': now,
+    }).eq('id', id).eq('organization_id', organizationId);
+  }
+
   /// Conta ordens por status.
   Future<Map<String, int>> countByStatus(String organizationId) async {
     final response = await supabase

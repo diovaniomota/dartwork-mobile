@@ -22,6 +22,7 @@ import '../../features/products/screens/products_screen.dart';
 import '../../features/products/screens/product_form_screen.dart';
 import '../../features/service_orders/screens/service_orders_screen.dart';
 import '../../features/service_orders/screens/service_order_form_screen.dart';
+import '../../features/service_orders/screens/service_order_detail_screen.dart';
 import '../../features/fiscal/screens/fiscal_screen.dart';
 import '../../features/fiscal/screens/nfe_form_screen.dart';
 import '../../features/fiscal/screens/nfce_pdv_screen.dart';
@@ -680,7 +681,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/ordens-servico/:id',
         builder: (context, state) =>
-            ServiceOrderFormScreen(orderId: state.pathParameters['id']),
+            ServiceOrderDetailScreen(orderId: state.pathParameters['id']!),
       ),
 
       // PDV e caixa
