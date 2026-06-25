@@ -17,6 +17,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/organization_provider.dart';
 import '../../../shared/widgets/common_widgets.dart';
 import 'dart:async';
+import 'photo_annotation_screen.dart';
 
 enum _PhotoSource { camera, gallery }
 
@@ -289,19 +290,32 @@ class _ServiceOrderFormScreenState
     );
     if (result == null || result.files.isEmpty) return;
 
-    final files = result.files
+    final rawFiles = result.files
         .where((f) => f.bytes != null && f.bytes!.isNotEmpty)
         .map((f) => (fileName: f.name, bytes: f.bytes!))
         .toList();
 
     if (!mounted) return;
-    if (files.isEmpty) {
+    if (rawFiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nenhuma imagem válida foi selecionada.')),
       );
       return;
     }
 
+    final files = <({String fileName, Uint8List bytes})>[];
+    for (final raw in rawFiles) {
+      if (!mounted) return;
+      final annotated = await Navigator.of(context).push<Uint8List>(
+        MaterialPageRoute(
+          builder: (_) => PhotoAnnotationScreen(imageBytes: raw.bytes, fileName: raw.fileName),
+        ),
+      );
+      if (!mounted) return;
+      if (annotated != null) files.add((fileName: raw.fileName, bytes: annotated));
+    }
+
+    if (files.isEmpty) return;
     await _uploadRawPhotos(organizationId: orgId, files: files);
   }
 
@@ -331,9 +345,17 @@ class _ServiceOrderFormScreenState
           ? captured.name
           : _extractFileNameFromPath(captured.path);
 
+      if (!mounted) return;
+      final annotated = await Navigator.of(context).push<Uint8List>(
+        MaterialPageRoute(
+          builder: (_) => PhotoAnnotationScreen(imageBytes: bytes, fileName: fileName),
+        ),
+      );
+      if (!mounted || annotated == null) return;
+
       await _uploadRawPhotos(
         organizationId: orgId,
-        files: [(fileName: fileName, bytes: bytes)],
+        files: [(fileName: fileName, bytes: annotated)],
       );
     } on MissingPluginException {
       if (!mounted) return;
